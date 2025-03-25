@@ -24,9 +24,23 @@ def getJobsInFolder(String folderPath, boolean recursive = false) {
     jobs.findAll { it != currentJobName }
 }
 
+
+// Test code: echo all jobs from the function
 node {
     echo "Current job: ${env.JOB_NAME}"
     def folderName = env.JOB_NAME.split('/')[0]
     def jobs = getJobsInFolder(folderName, true)
     echo "Jobs including sub-folders: ${jobs}"
+}
+
+// Test code: Run all jobs from the function in each stage
+node {
+    def folderName = env.JOB_NAME.split('/')[0]
+    def jobs = getJobsInFolder(folderName, true)
+
+    jobs.each { job ->
+        stage("Run ${job}") {
+            echo "Running ${job}"
+        }
+    }
 }
