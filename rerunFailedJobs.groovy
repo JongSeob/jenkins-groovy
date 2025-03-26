@@ -1,5 +1,6 @@
 // 클래스 레벨에서 실패한 작업 목록 선언
 def failedJobs = []
+def jobs = []
 
 pipeline {
     agent any
@@ -20,10 +21,9 @@ pipeline {
                 script {
                     jobs.each { job ->
                         stage("Build ${job}") {
-                            catchError(buildResult: 'SUCCESS', stageResult: 'FAILURE') {
+                            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
                                 echo "Running ${job}"
-                                // 실제 빌드 명령어
-                                // build job: job
+                                build job: job
                                 
                                 // 현재 스테이지 결과 확인
                                 if (currentBuild.currentResult == 'FAILURE') {
@@ -44,12 +44,10 @@ pipeline {
                 if (failedJobs.size() > 0) {
                     echo "재실행할 실패한 작업들: ${failedJobs}"
                     
-                    failedJobs.each { job ->
-                        stage("Retry ${job}") {
-                            echo "재실행 중: ${job}"
-                            retry(3) {
-                                // 재실행 명령어
-                                // build job: job
+                    stage('Rerun Failed Jobs') {
+                        failedJobs.each { job ->
+                            stage("rerun - ${job}") {
+                                build job: job
                             }
                         }
                     }
