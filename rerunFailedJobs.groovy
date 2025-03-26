@@ -1,4 +1,3 @@
-// 클래스 레벨에서 실패한 작업 목록 선언
 def failedJobs = []
 def jobs = []
 
@@ -21,15 +20,14 @@ pipeline {
                 script {
                     jobs.each { job ->
                         stage("Build ${job}") {
-                            catchError(buildResult: 'FAILURE', stageResult: 'FAILURE') {
+                            try {
                                 echo "Running ${job}"
                                 build job: job
-                                
-                                // 현재 스테이지 결과 확인
-                                if (currentBuild.currentResult == 'FAILURE') {
-                                    echo "Job ${job} 실행 실패, 재실행 목록에 추가합니다."
-                                    failedJobs.add(job)
-                                }
+                                echo "Job ${job} completed successfully."
+                            } catch (Exception e) {
+                                echo "Job ${job} failed with error: ${e.message}"
+                                failedJobs.add(job)
+                                echo "Added ${job} to rerun queue."
                             }
                         }
                     }
@@ -42,24 +40,27 @@ pipeline {
         always {
             script {
                 if (failedJobs.size() > 0) {
-                    echo "재실행할 실패한 작업들: ${failedJobs}"
+                    echo "Failed jobs to rerun: ${failedJobs}"
                     
                     stage('Rerun Failed Jobs') {
                         failedJobs.each { job ->
                             stage("rerun - ${job}") {
-                                build job: job
+                                echo "Rerunning: ${job}"
+                                retry(3) {
+                                    build job: job
+                                }
                             }
                         }
                     }
                 } else {
-                    echo "모든 작업이 성공적으로 완료되었습니다."
+                    echo "All jobs completed successfully."
                 }
             }
         }
     }
 }
 
-// 함수 정의는 pipeline 블록 외부에 위치
+// Function defined outside the pipeline block
 def getJobsInFolder(boolean recursive = false) {
     def currFolderName = env.JOB_NAME.split('/')[0] // type: string
     def currFolder = Jenkins.get().getItemByFullName(currFolderName) // type: com.cloudbees.hudson.plugins.folder.Folder
